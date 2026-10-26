@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>담담</title>
+<meta name="theme-color" content="#eff1ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141a28" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="담담">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Gowun+Batang:wght@400;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="themes.css">
+<script>(function () { var k = null; try { k = localStorage.getItem('damdam.look'); } catch (e) {} k = k || 'receipt'; if (k !== 'base') document.documentElement.setAttribute('data-look', k); })();</script>
+</head>
+<body>
+<div id="app">
+  <!-- 홈 -->
+  <section id="view-home" class="view">
+    <header class="top">
+      <div class="top-inner">
+        <h1 class="brand">담담</h1>
+        <button class="icon-btn" id="btn-settings" aria-label="백업과 설정">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
+        </button>
+      </div>
+      <div class="search-row">
+        <input id="q" type="search" placeholder="이름, 품번, 메모로 찾기" autocomplete="off">
+      </div>
+      <nav class="tabs" role="tablist">
+        <button class="tab is-on" data-tab="wish" role="tab"><span class="tab-lbl">위시템</span><sup class="tab-n" data-n="wish"></sup></button>
+        <button class="tab" data-tab="rec" role="tab"><span class="tab-lbl">추천템</span><sup class="tab-n" data-n="rec"></sup></button>
+        <button class="tab" data-tab="staple" role="tab"><span class="tab-lbl">단골템</span><sup class="tab-n" data-n="staple"></sup></button>
+      </nav>
+    </header>
+    <main class="wrap" id="home-body"></main>
+    <button class="fab" id="btn-new" aria-label="위시 추가">
+      <svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">
+        <path class="fab-heart" d="M18 31s-10-6.2-10-13.2A5.6 5.6 0 0 1 18 14a5.6 5.6 0 0 1 10 3.8C28 24.8 18 31 18 31z" fill="#fff" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        <path class="fab-shot" d="M9 12h18v20H9z M13 12v-2h10v2" fill="#fff" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        <path class="fab-buy" d="M10 9h16v23l-2.7-1.8-2.6 1.8-2.7-1.8-2.7 1.8-2.6-1.8L10 32z" fill="#fff" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        <path class="fab-buy" d="M14 16h8M14 21h8M14 26h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="31" cy="9" r="6" fill="currentColor"/>
+        <path d="M31 6.2v5.6M28.2 9h5.6" stroke="var(--sun)" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </section>
+
+  <!-- 위시 작성·수정 -->
+  <section id="view-wish" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="text-btn muted" data-cancel>취소</button>
+        <span class="top-title" id="wish-title">위시 추가</span>
+        <button class="text-btn strong" id="btn-wish-save">저장</button>
+      </div>
+    </header>
+    <main class="wrap" data-foot="WISH">
+      <form class="form" autocomplete="off" novalidate>
+        <section class="block quick">
+          <label class="field">
+            <span class="lbl">한 줄로 적기</span>
+            <input type="text" id="w-quick" placeholder="예: 요시카와 편수냄비 20cm / 3.2만" enterkeyhint="done">
+          </label>
+          <p class="hint" id="w-quick-hint">평소 메모하던 그대로 적으면 아래 칸이 알아서 채워져요.</p>
+        </section>
+
+        <section class="block tagfill">
+          <div class="block-head"><h2>사진으로 채우기</h2><span class="hint">옷 태그, 품번 라벨, 바코드 사진</span></div>
+          <label class="ghost-btn"><input type="file" id="w-tag-input" accept="image/*" hidden>태그·품번 사진 넣기</label>
+          <p class="ocr-status" id="w-ocr-status" role="status"></p>
+          <div class="field" id="w-ocr-box" hidden>
+            <span class="lbl">찾은 글자 <em>누르면 '무엇'에 들어가요</em></span>
+            <div class="chips" id="w-ocr-chips"></div>
+          </div>
+        </section>
+
+        <section class="block">
+          <label class="field">
+            <span class="lbl">무엇</span>
+            <input type="text" id="w-title" placeholder="예: 스틸 편수냄비">
+          </label>
+          <div class="row2">
+            <label class="field"><span class="lbl">브랜드</span><input type="text" id="w-brand" placeholder="예: 요시카와"></label>
+            <label class="field"><span class="lbl">사이즈·옵션</span><input type="text" id="w-size" placeholder="예: 20cm, 100, 블랙"></label>
+          </div>
+          <label class="field">
+            <span class="lbl">품번·모델명 <em>세일 때 검색하기 좋아요</em></span>
+            <input type="text" id="w-code" placeholder="예: 7L82072" autocapitalize="characters" spellcheck="false">
+          </label>
+          <label class="field">
+            <span class="lbl">링크 <em>상품 페이지</em></span>
+            <input type="text" id="w-link" inputmode="url" placeholder="https://" spellcheck="false">
+          </label>
+          <div class="search-links" id="w-search"></div>
+          <div class="field">
+            <span class="lbl">다른 사람 거예요? <em>안 고르면 내 것</em></span>
+            <div class="chips" id="w-who"></div>
+          </div>
+          <div class="field">
+            <span class="lbl">분류</span>
+            <div class="chips cat-chips" id="w-cat"></div>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>가격 기록</h2><span class="hint">쿠폰·카드 할인 적용가도 적어두면 가장 싼 값이 보여요</span></div>
+          <div class="prices" id="w-prices"></div>
+          <div class="price-add">
+            <input type="text" id="w-p-amount" inputmode="numeric" placeholder="예: 34만">
+            <input type="text" id="w-p-where" placeholder="어디서·쿠폰가 (선택)">
+            <button type="button" class="mini-btn" id="w-p-add">추가</button>
+          </div>
+          <div class="field">
+            <span class="lbl">상태</span>
+            <div class="seg" id="w-status">
+              <button type="button" data-v="want" class="is-on">고민 중</button>
+              <button type="button" data-v="sale">세일 대기</button>
+              <button type="button" data-v="bought">샀어요</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="block">
+          <label class="field">
+            <span class="lbl">메모 <em>선택</em></span>
+            <textarea id="w-memo" rows="3" placeholder="색상, 매장, 비교 중인 다른 제품…"></textarea>
+          </label>
+          <div class="photo-grid" id="w-photos"></div>
+          <label class="ghost-btn"><input type="file" id="w-photo-input" accept="image/*" multiple hidden>사진 넣기</label>
+        </section>
+
+        <div class="danger-zone" id="w-del-zone" hidden>
+          <button type="button" class="danger-btn" data-del>이 위시 삭제</button>
+          <div class="confirm" hidden>
+            <p>사진까지 모두 지워져요. 되돌릴 수 없어요.</p>
+            <div class="confirm-row"><button type="button" class="ghost-btn" data-del-no>그대로 두기</button><button type="button" class="danger-btn solid" data-del-yes>삭제</button></div>
+          </div>
+        </div>
+      </form>
+    </main>
+  </section>
+
+  <!-- 여러 줄 가져오기 -->
+  <section id="view-paste" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="text-btn muted" data-cancel>취소</button>
+        <span class="top-title">여러 줄 가져오기</span>
+        <button class="text-btn strong" id="btn-paste-save">가져오기</button>
+      </div>
+    </header>
+    <main class="wrap" data-foot="IMPORT">
+      <section class="block">
+        <p class="body-copy">다른 앱에 적어둔 목록을 붙여넣거나, 네이버 장바구니를 스크롤하며 캡처한 사진을 여러 장 한꺼번에 넣으세요. 한 줄이 위시 하나가 되고 품번·옵션·가격은 알아서 나눠요.</p>
+        <label class="ghost-btn"><input type="file" id="paste-shot" accept="image/*" multiple hidden>장바구니 캡처로 한 번에 가져오기</label>
+        <p class="ocr-status" id="paste-status" role="status"></p>
+        <textarea id="paste-text" rows="8" placeholder="요시카와 스틸편수냄비 20cm&#10;포지티브 컵 http://www.positiv.kr&#10;네파 프리미아 7L82072 100 /34만"></textarea>
+      </section>
+      <section class="block" id="paste-preview-wrap" hidden>
+        <div class="block-head"><h2>이렇게 들어가요</h2><span class="hint" id="paste-count"></span></div>
+        <div id="paste-preview" class="paste-preview"></div>
+      </section>
+    </main>
+  </section>
+
+  <!-- 추천 작성·수정 -->
+  <section id="view-rec" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="text-btn muted" data-cancel>취소</button>
+        <span class="top-title" id="rec-title">추천 담기</span>
+        <button class="text-btn strong" id="btn-rec-save">저장</button>
+      </div>
+    </header>
+    <main class="wrap" data-foot="PICK">
+      <form class="form" autocomplete="off" novalidate>
+        <section class="block">
+          <div class="block-head"><h2>캡처</h2><span class="hint">인스타, X, 블로그, 쇼핑몰 화면</span></div>
+          <div class="photo-grid" id="r-photos"></div>
+          <label class="ghost-btn"><input type="file" id="r-photo-input" accept="image/*" multiple hidden>캡처 넣기</label>
+          <div class="ocr-box" id="ocr-box" hidden>
+            <p class="ocr-status" id="ocr-status" role="status"></p>
+            <div class="chips" id="ocr-chips"></div>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="field">
+            <span class="lbl">어떤 품목 <em id="r-cat-guess"></em></span>
+            <div class="chips cat-chips" id="r-cat"></div>
+          </div>
+          <label class="field">
+            <span class="lbl">이름</span>
+            <input type="text" id="r-titleinp" placeholder="예: 클룹 제로소다 레몬">
+          </label>
+          <label class="field">
+            <span class="lbl">링크 <em>선택</em></span>
+            <input type="text" id="r-link" inputmode="url" placeholder="https://">
+          </label>
+        </section>
+
+        <div class="danger-zone" id="r-del-zone" hidden>
+          <button type="button" class="danger-btn" data-del>이 추천 삭제</button>
+          <div class="confirm" hidden>
+            <p>캡처까지 모두 지워져요. 되돌릴 수 없어요.</p>
+            <div class="confirm-row"><button type="button" class="ghost-btn" data-del-no>그대로 두기</button><button type="button" class="danger-btn solid" data-del-yes>삭제</button></div>
+          </div>
+        </div>
+      </form>
+    </main>
+  </section>
+
+  <!-- 추천 상세 -->
+  <section id="view-recview" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="icon-btn" data-back aria-label="뒤로">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="top-title" id="rv-top"></span>
+        <button class="text-btn" id="btn-rv-edit">수정</button>
+      </div>
+    </header>
+    <main class="wrap" id="rv-body" data-foot="PICK"></main>
+  </section>
+
+  <!-- 단골템 상세 -->
+  <section id="view-staple" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="icon-btn" data-back aria-label="뒤로">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="top-title" id="st-top">단골템</span>
+        <button class="text-btn" id="btn-st-edit">수정</button>
+      </div>
+    </header>
+    <main class="wrap" id="st-body" data-foot="REGULAR"></main>
+  </section>
+
+  <!-- 단골템 구매 기록 -->
+  <section id="view-buy" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="text-btn muted" data-cancel>취소</button>
+        <span class="top-title" id="buy-title">단골템 기록</span>
+        <button class="text-btn strong" id="btn-buy-save">저장</button>
+      </div>
+    </header>
+    <main class="wrap" data-foot="REGULAR">
+      <form class="form" autocomplete="off" novalidate>
+        <section class="block" id="buy-product">
+          <label class="field">
+            <span class="lbl">무엇</span>
+            <input type="text" id="b-title" placeholder="예: 삼다수 2L">
+          </label>
+          <div class="field">
+            <span class="lbl">세는 단위 <em>개당 가격을 계산할 때 써요</em></span>
+            <div class="chips" id="b-unit"></div>
+          </div>
+          <div class="field">
+            <span class="lbl">분류</span>
+            <div class="chips cat-chips" id="b-cat"></div>
+          </div>
+        </section>
+
+        <section class="block" id="buy-purchase">
+          <div class="block-head"><h2 id="buy-head">이번 구매</h2><span class="hint">주문 캡처를 넣으면 가격을 읽어줘요</span></div>
+          <label class="ghost-btn"><input type="file" id="b-shot" accept="image/*" multiple hidden>주문·결제 캡처 넣기</label>
+          <p class="ocr-status" id="b-ocr-status" role="status"></p>
+          <div class="field" id="b-ocr-box" hidden>
+            <span class="lbl">찾은 금액 <em>누르면 가격에 들어가요</em></span>
+            <div class="chips" id="b-ocr-chips"></div>
+          </div>
+          <div class="photo-grid" id="b-photos"></div>
+          <div class="row2">
+            <label class="field"><span class="lbl">가격 <em>쿠폰 적용 후</em></span><input type="text" id="b-price" inputmode="numeric" placeholder="예: 11,900"></label>
+            <label class="field"><span class="lbl">수량 <em id="b-unit-lbl">개</em></span><input type="text" id="b-qty" inputmode="decimal" placeholder="예: 12"></label>
+          </div>
+          <p class="unit-price" id="b-unit-price" aria-live="polite"></p>
+          <div class="row2">
+            <label class="field"><span class="lbl">날짜</span><input type="date" id="b-date"></label>
+            <label class="field"><span class="lbl">어디서</span><input type="text" id="b-shop" placeholder="예: 쿠팡, 네이버"></label>
+          </div>
+          <label class="field">
+            <span class="lbl">메모 <em>선택</em></span>
+            <input type="text" id="b-memo" placeholder="예: 와우 할인, 1+1 행사">
+          </label>
+        </section>
+
+        <div class="danger-zone" id="b-del-zone" hidden>
+          <button type="button" class="danger-btn" id="b-del-btn">이 구매 기록 삭제</button>
+          <div class="confirm" id="b-del-confirm" hidden>
+            <p id="b-del-msg">이 구매 기록을 지울까요? 되돌릴 수 없어요.</p>
+            <div class="confirm-row"><button type="button" class="ghost-btn" id="b-del-no">그대로 두기</button><button type="button" class="danger-btn solid" id="b-del-yes">삭제</button></div>
+          </div>
+        </div>
+      </form>
+    </main>
+  </section>
+
+  <!-- 설정 -->
+  <section id="view-settings" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="icon-btn" data-back aria-label="뒤로">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="top-title">백업과 설정</span>
+        <span class="icon-btn" aria-hidden="true"></span>
+      </div>
+    </header>
+    <main class="wrap form" data-foot="SETTINGS">
+      <section class="block">
+        <div class="block-head"><h2>저장 상태</h2></div>
+        <p class="stat" id="stat-line">불러오는 중…</p>
+        <p class="hint" id="last-backup-line"></p>
+      </section>
+      <section class="block">
+        <div class="block-head"><h2>백업</h2></div>
+        <p class="body-copy">위시와 캡처는 이 폰 안에만 저장돼요. 한 달에 한 번쯤 백업 파일을 만들어 클라우드에 올려두세요.</p>
+        <div class="stack">
+          <button class="primary-btn" id="btn-export">백업 파일 만들기</button>
+          <label class="ghost-btn center"><input type="file" id="import-input" accept=".json,application/json" hidden>백업 파일에서 불러오기</label>
+        </div>
+        <p class="hint" id="io-status" role="status"></p>
+      </section>
+      <section class="block">
+        <div class="block-head"><h2>홈 화면에 추가</h2></div>
+        <ul class="howto">
+          <li><b>아이폰</b> 사파리 아래 공유 버튼 → 홈 화면에 추가</li>
+          <li><b>안드로이드</b> 크롬 오른쪽 위 메뉴 → 홈 화면에 추가 또는 앱 설치</li>
+        </ul>
+      </section>
+    </main>
+  </section>
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="icon-btn lb-close" id="lb-close" aria-label="닫기">
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <img id="lb-img" alt="">
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
