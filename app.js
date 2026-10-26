@@ -1007,7 +1007,7 @@ async function ocrPrep(blob) {
   try {
     const src = await createImageBitmap(blob, { imageOrientation: 'from-image' });
     const k = Math.min(1, 2400 / Math.max(src.width, src.height), Math.sqrt(3000000 / (src.width * src.height)));
-    if (k >= 1) { if (src.close) src.close(); return blob; }
+    // 크기가 작아도 한 번 다시 그려서 새 파일로 만든다 (원본 파일을 다시 읽지 않게)
     const c = document.createElement('canvas');
     c.width = Math.round(src.width * k); c.height = Math.round(src.height * k);
     c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
@@ -1643,3 +1643,7 @@ function openShared(title, text, url) {
   if (shared) openShared(sp.get('title') || '', sp.get('text') || '', sp.get('url') || '');
   if ('serviceWorker' in navigator && location.protocol !== 'file:' && !window.DAMDAM_PREVIEW) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
+
+/* 앱 버전 표시 (설정 맨 아래). 업데이트가 들어왔는지 확인용 */
+const APP_VER = 'damdam-v16';
+(() => { const el = document.getElementById('app-ver'); if (el) el.textContent = `담담 버전 ${APP_VER.split('-').pop()}`; })();

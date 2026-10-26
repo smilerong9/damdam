@@ -1,11 +1,11 @@
 // 담담 오프라인 캐시. 앱 파일을 고치면 VERSION을 올린다.
-const VERSION = 'damdam-v15';
+const VERSION = 'damdam-v16';
 const EXT_CACHE = 'damdam-ext';
 const FILES = ['./', 'index.html', 'style.css', 'themes.css', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 const EXT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net', 'tessdata.projectnaptha.com'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== EXT_CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -21,9 +21,14 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (url.origin !== location.origin) return;
-  e.respondWith(fetch(e.request).then(res => {
+  e.respondWith(fetch(fresh(e.request)).then(res => {
     const copy = res.clone();
     caches.open(VERSION).then(c => c.put(e.request, copy));
     return res;
   }).catch(() => caches.match(e.request).then(r => r || caches.match('index.html'))));
 });
+
+// 앱 파일은 브라우저 보관본(GitHub는 10분 보관)을 건너뛰고 늘 새로 확인한다
+function fresh(req) {
+  return req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : new Request(req, { cache: 'no-cache' });
+}
