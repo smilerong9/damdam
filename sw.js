@@ -1,5 +1,5 @@
 // 담담 오프라인 캐시. 앱 파일을 고치면 VERSION을 올린다.
-const VERSION = 'damdam-v14';
+const VERSION = 'damdam-v15';
 const EXT_CACHE = 'damdam-ext';
 const FILES = ['./', 'index.html', 'style.css', 'themes.css', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 const EXT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net', 'tessdata.projectnaptha.com'];

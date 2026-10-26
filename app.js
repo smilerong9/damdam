@@ -160,6 +160,18 @@ function dropURL(id) { const u = urlCache.get(id); if (u) { URL.revokeObjectURL(
 async function hydrate(root) {
   await Promise.all($$('img[data-pid]', root).map(async img => { const u = await photoURL(img.dataset.pid); if (u) img.src = u; }));
 }
+// 고른 사진을 바로 메모리로 복사한다. 안드로이드는 입력칸을 비우거나 시간이 지나면
+// 원본 파일을 다시 못 읽을 때가 있다 ("File could not be read! Code=0")
+async function takeFiles(input) {
+  const list = Array.from(input.files || []);
+  const out = [];
+  for (const f of list) {
+    try { out.push(new File([await f.arrayBuffer()], f.name || 'photo.jpg', { type: f.type || 'image/jpeg', lastModified: f.lastModified })); }
+    catch { out.push(f); }
+  }
+  input.value = '';
+  return out;
+}
 async function shrink(file, MAX = 1600) {
   let src;
   try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
@@ -608,7 +620,7 @@ async function readBarcode(blob) {
 }
 function wishOcrStatus(msg, busy) { const el = $('#w-ocr-status'); el.textContent = msg; el.classList.toggle('busy', !!busy); }
 $('#w-tag-input').addEventListener('change', async e => {
-  const files = Array.from(e.target.files || []); e.target.value = '';
+  const files = await takeFiles(e.target);
   const d = state.draft; if (!files.length || !d) return;
   await addPhotos(files, d);
   $('#w-photos').innerHTML = photosHTML(d, false); hydrate($('#w-photos'));
@@ -781,7 +793,7 @@ $('#w-prices').addEventListener('click', e => {
   renderPrices();
 });
 $('#w-photo-input').addEventListener('change', async e => {
-  const files = Array.from(e.target.files || []); e.target.value = '';
+  const files = await takeFiles(e.target);
   if (!files.length || !state.draft) return;
   await addPhotos(files, state.draft);
   $('#w-photos').innerHTML = photosHTML(state.draft, false); hydrate($('#w-photos'));
@@ -838,7 +850,7 @@ function cartLines(text) {
   return out.slice(0, 30);
 }
 $('#paste-shot').addEventListener('change', async e => {
-  const files = Array.from(e.target.files || []); e.target.value = '';
+  const files = await takeFiles(e.target);
   if (!files.length) return;
   ocrReport = pasteStatus;
   pasteStatus('글자 인식 준비 중…', true);
@@ -956,7 +968,7 @@ $('#r-cat').addEventListener('click', e => {
   renderRecCat();
 });
 $('#r-photo-input').addEventListener('change', async e => {
-  const files = Array.from(e.target.files || []); e.target.value = '';
+  const files = await takeFiles(e.target);
   const d = state.draft; if (!files.length || !d) return;
   const added = await addPhotos(files, d);
   renderRecPhotos();
@@ -1360,7 +1372,7 @@ function parseOrder(text) {
 }
 function buyOcrStatus(msg, busy) { const el = $('#b-ocr-status'); el.textContent = msg; el.classList.toggle('busy', !!busy); }
 $('#b-shot').addEventListener('change', async e => {
-  const files = Array.from(e.target.files || []); e.target.value = '';
+  const files = await takeFiles(e.target);
   const d = state.draft; if (!files.length || !d) return;
   const before = d.item.photos.length;
   await addPhotos(files, d);
