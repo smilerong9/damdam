@@ -588,3 +588,5 @@
 [data-look="receipt"] .rsec .rl { border-top: 1px dashed var(--line); }
 [data-look="receipt"] .pm.up { color: var(--sun); }
 [data-look="receipt"] .pm b { font-family: var(--mono); font-weight: 600; }
+[data-look="receipt"] .lbl { color: var(--ink); font-weight: 700; }
+[data-look="receipt"] .lbl em { color: var(--ink-2); }

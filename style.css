@@ -419,3 +419,10 @@ textarea { resize: vertical; line-height: 1.5; }
 .bl-line .pm svg { width: 17px; height: 17px; }
 .cat-culture { --c: var(--c-book); }
 .cat-body { --c: var(--c-drink); }
+
+/* 예시 글자: 작고 연하게, 저장된 항목을 다시 열면 숨김 */
+input::placeholder, textarea::placeholder { font-size: 0.8em; color: var(--ink-3); opacity: .75; }
+.saved-item input::placeholder, .saved-item textarea::placeholder { color: transparent; }
+/* 칸 이름은 진하게 */
+.lbl { color: var(--ink); }
+.lbl em { color: var(--ink-2); }

@@ -556,6 +556,7 @@ function startWish(id) {
 function renderWish() {
   const d = state.draft, w = d.item;
   $('#wish-title').textContent = d.isNew ? '위시 추가' : '위시';
+  $('#view-wish').classList.toggle('saved-item', !d.isNew);
   $('#w-quick').value = '';
   $('#w-quick').closest('.block').hidden = !d.isNew;
   ['title', 'brand', 'code', 'size', 'link', 'memo'].forEach(k => { $('#w-' + k).value = w[k] || ''; });
@@ -625,8 +626,8 @@ $('#w-tag-input').addEventListener('change', async e => {
     tag = parseTag(text);
     d.tagTokens = tokenize(text).filter(t => !/^(품번|사이즈|SIZE|색상|COLOR|가격|원산지|제조)/i.test(t)).slice(0, 30);
     renderWishOcr();
-  } catch {
-    wishOcrStatus(bc ? '' : '지금은 글자를 읽을 수 없어요. 인터넷 연결을 확인하거나 직접 입력해 주세요.');
+  } catch (err) {
+    wishOcrStatus(bc ? '' : ocrFailMsg(err));
   }
   if (!tag.code && bc && /[A-Za-z]/.test(bc)) tag.code = bc;
   if (tag.code && !w.code) { w.code = tag.code; found.push(`품번 ${tag.code}`); }
@@ -851,8 +852,8 @@ $('#paste-shot').addEventListener('change', async e => {
     ta.dispatchEvent(new Event('input'));
     if (!state.pasteShop && /naver|네이버|N페이/i.test(lines.join(' '))) { state.pasteShop = '네이버'; renderPastePreview(); }
     pasteStatus(`${lines.length}줄을 찾았어요. 아래에서 빼고 싶은 줄은 체크를 풀어주세요.`);
-  } catch {
-    pasteStatus('지금은 글자를 읽을 수 없어요. 인터넷 연결을 확인해 주세요.');
+  } catch (err) {
+    pasteStatus(ocrFailMsg(err));
   }
 });
 function renderPastePreview() {
@@ -916,6 +917,7 @@ function startRec(id) {
 function renderRec() {
   const d = state.draft, r = d.item;
   $('#rec-title').textContent = d.isNew ? '추천 담기' : '추천 수정';
+  $('#view-rec').classList.toggle('saved-item', !d.isNew);
   $('#r-titleinp').value = r.title || '';
   $('#r-link').value = r.link || '';
   $('#ocr-status').textContent = '';
@@ -988,6 +990,23 @@ function ocrStatus(msg, busy) {
   el.textContent = msg; el.classList.toggle('busy', !!busy);
 }
 let ocrReport = (msg, busy) => ocrStatus(msg, busy);
+/* OCR에 넣기 전에 사진 크기 줄이기: 카메라 원본(1200만 화소 이상)을 그대로 넣으면 폰 메모리가 모자라 멈춘다 */
+async function ocrPrep(blob) {
+  try {
+    const src = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    const k = Math.min(1, 2400 / Math.max(src.width, src.height), Math.sqrt(3000000 / (src.width * src.height)));
+    if (k >= 1) { if (src.close) src.close(); return blob; }
+    const c = document.createElement('canvas');
+    c.width = Math.round(src.width * k); c.height = Math.round(src.height * k);
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+    if (src.close) src.close();
+    return (await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92))) || blob;
+  } catch { return blob; }
+}
+// 실패하면 원인을 짧게 함께 보여준다 (다음에 고칠 때 단서)
+const ocrFailMsg = err => (navigator.onLine === false
+  ? '인터넷이 연결되지 않았어요. 글자 읽기는 처음 한 번 인터넷이 필요해요.'
+  : '글자를 읽지 못했어요. 한 번 더 눌러보거나 직접 입력해 주세요.') + (err && err.message ? ` (${String(err.message).slice(0, 60)})` : '');
 function getOcrWorker() {
   if (!ocrWorkerP) {
     ocrWorkerP = (async () => {
@@ -1000,6 +1019,15 @@ function getOcrWorker() {
         },
       });
     })();
+    ocrWorkerP = ocrWorkerP.then(w => {
+      // 인식 중 오류가 나면 작업자를 버리고 다음에 새로 만든다
+      const orig = w.recognize.bind(w);
+      w.recognize = async (img, ...rest) => {
+        try { return await orig(await ocrPrep(img), ...rest); }
+        catch (e) { ocrWorkerP = null; try { w.terminate(); } catch {} throw e; }
+      };
+      return w;
+    });
     ocrWorkerP.catch(() => { ocrWorkerP = null; });
   }
   return ocrWorkerP;
@@ -1027,8 +1055,8 @@ async function readText(blob) {
     renderOcrChips();
     regGuess();
     ocrStatus(d.tokens.length ? '찾은 글자예요. 누르면 이름에 들어가요.' : '글자를 찾지 못했어요. 직접 입력해 주세요.');
-  } catch {
-    ocrStatus('지금은 글자를 읽을 수 없어요. 인터넷 연결을 확인하거나 직접 입력해 주세요.');
+  } catch (err) {
+    ocrStatus(ocrFailMsg(err));
   }
 }
 function renderOcrChips() {
@@ -1249,6 +1277,7 @@ function startBuy(s) {
 function renderBuy() {
   const d = state.draft, s = d.item, b = d.buy;
   $('#buy-title').textContent = { new: '단골템 기록', buy: '이번 구매 기록', buyedit: '구매 기록 수정', edit: '단골템 수정' }[d.mode];
+  $('#view-buy').classList.toggle('saved-item', d.mode === 'edit' || d.mode === 'buyedit');
   $('#buy-product').hidden = !(d.mode === 'new' || d.mode === 'edit');
   $('#buy-purchase').hidden = d.mode === 'edit';
   $('#buy-head').textContent = d.mode === 'buyedit' ? '구매 기록' : '이번 구매';
@@ -1355,8 +1384,8 @@ $('#b-shot').addEventListener('change', async e => {
     $('#b-ocr-chips').innerHTML = d.amounts.map(n => `<button type="button" class="chip ocr-chip" data-amt="${n}">${won(n)}</button>`).join('');
     renderUnitPrice();
     buyOcrStatus(found.length ? `찾았어요: ${found.join(' · ')}` : '금액을 찾지 못했어요. 직접 적어 주세요.');
-  } catch {
-    buyOcrStatus('지금은 글자를 읽을 수 없어요. 인터넷 연결을 확인하거나 직접 입력해 주세요.');
+  } catch (err) {
+    buyOcrStatus(ocrFailMsg(err));
   }
 });
 $('#b-ocr-chips').addEventListener('click', e => {
