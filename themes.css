@@ -590,3 +590,121 @@
 [data-look="receipt"] .pm b { font-family: var(--mono); font-weight: 600; }
 [data-look="receipt"] .lbl { color: var(--ink); font-weight: 700; }
 [data-look="receipt"] .lbl em { color: var(--ink-2); }
+
+/* =========================================================
+   촘촘하게 (2026-10): 줄 높이·칸 간격을 모든 화면에서 줄임
+   맨 뒤에 둬서 위 디자인별 규칙보다 우선한다
+   ========================================================= */
+body { line-height: 1.45; }
+.top-inner { min-height: 50px; }
+.tabs { padding-top: 4px; padding-bottom: 6px; }
+.cat-filter, .who-filter { padding-top: 8px; }
+.wish-tools { margin-top: 6px; }
+.sec-title, [data-look] .sec-title { margin: 14px 0 4px; }
+.wl-row, .rl-row, .sl-row, .bl-row,
+[data-look] .wl-row, [data-look] .rl-row, [data-look] .sl-row, [data-look] .bl-row { padding-top: 8px; padding-bottom: 8px; }
+.wl-main, .sl-main, .rl-main { gap: 1px; }
+.wl-title, .sl-title, .rl-title { font-size: 15px; }
+.wsec { margin-top: 2px; }
+.wsec-head, [data-look] .wsec-head { padding: 10px 0 6px; }
+.wsec-more, [data-look] .wsec-more { padding: 7px 0; }
+.done-toggle { margin-top: 10px; }
+.rv-head { margin: 12px 0 4px; }
+.rv-actions { margin-top: 12px; padding-top: 12px; }
+.st-sum { margin-top: 10px; }
+.st-sum > div { padding-top: 8px; padding-bottom: 8px; }
+
+/* 작성 화면 */
+.form { gap: 18px; }
+[data-look] .form { gap: 4px; }
+.block { gap: 10px; padding-top: 10px; }
+[data-look] .block { gap: 11px; padding: 12px 0 14px; }
+[data-look] .block.quick { padding-top: 0; }
+.field { gap: 2px; }
+.form input[type=text], .form textarea, .wrap textarea { padding: 7px 10px; }
+[data-look] .form input[type=text], [data-look] .price-add input { padding: 3px 0 4px; }
+[data-look="receipt"] #w-quick { padding: 9px 10px; }
+.chip, [data-look] .chip { height: 31px; }
+.ghost-btn { min-height: 36px; }
+.ocr-status:empty { display: none; }
+.form .hint:empty { display: none; }
+
+/* ---------- 용량 칸 ---------- */
+.vol-row { display: flex; gap: 10px; align-items: end; }
+.vol-row input { flex: 1; }
+.seg.mini { flex: none; width: 104px; }
+.seg.mini button { height: 30px; font-size: 13px; }
+
+/* ---------- 묶음 ---------- */
+.sl-grp .grp-ic { width: 12px; height: 10px; border: 1.5px solid var(--ink-2); border-top-width: 3px; flex: none; box-sizing: border-box; }
+.sl-grp .chev { display: block; width: 9px; height: 9px; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); transform: rotate(-45deg); transition: transform .15s; margin-right: 4px; }
+.sl-grp.open .chev { transform: rotate(45deg) translateY(-3px); }
+.sl-row.sub { padding-left: 20px; }
+
+/* ---------- 계산기 버튼 ---------- */
+.fab-sub {
+  position: fixed;
+  right: max(28px, calc(env(safe-area-inset-right, 0px) + 28px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 98px);
+  width: 46px; height: 46px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+  box-shadow: 2px 2px 0 var(--line);
+  font-weight: 700; font-size: 13px; z-index: 30;
+}
+.fab-sub[hidden] { display: none; }
+.fab[hidden] { display: none; }
+[data-look="receipt"] .fab-sub { font-family: var(--mono); letter-spacing: 0.04em; }
+
+/* ---------- 선택해서 지우기 ---------- */
+.sel-link { margin-left: 12px; }
+.selecting [data-sid] { position: relative; padding-left: 30px !important; cursor: pointer; }
+.selecting .wl-row { grid-template-columns: minmax(0, 1fr) auto; }
+.selecting .wl-check { display: none; }
+.selecting [data-sid]::before {
+  content: ""; position: absolute; left: 0; top: 50%; width: 18px; height: 18px; margin-top: -9px;
+  border: 1.5px solid var(--line); background: var(--surface); box-sizing: border-box;
+}
+.selecting [data-sid].is-sel { background: var(--sunk); }
+.selecting [data-sid].is-sel::before { background: var(--danger); border-color: var(--danger);
+  box-shadow: inset 0 0 0 3px var(--surface); }
+.selecting [data-sid] * { pointer-events: none; }
+.sel-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  background: var(--surface); border-top: 1.5px solid var(--line);
+  padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 10px);
+}
+.sel-bar[hidden] { display: none; }
+.sel-row { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+.sel-row[hidden] { display: none; }
+.sel-row > span { flex: 1; font-weight: 700; font-size: 14px; }
+.sel-row .danger-btn { width: auto; padding: 0 18px; height: 40px; }
+.sel-row .danger-btn:disabled { opacity: .4; }
+.selecting { padding-bottom: 90px; }
+
+/* ---------- 퀵 계산기 결과 ---------- */
+.calc-result { gap: 10px; }
+.cr-verdict { display: flex; align-items: center; gap: 8px; font-size: 18px; }
+.cr-verdict.best, .cr-verdict.good { color: var(--teal); }
+.cr-verdict.mid { color: var(--ink-2); }
+.cr-verdict.bad { color: var(--coral); }
+[data-look="receipt"] .cr-verdict.bad { color: var(--sun); }
+.cr-now { margin: 0; font-size: 15px; }
+.cr-now span { color: var(--ink-3); font-size: 13px; margin-left: 6px; }
+.cr-rows { display: grid; border-top: 1px dashed var(--line); }
+.cr-row { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 7px 0; border-bottom: 1px dotted var(--hair); font-size: 13.5px; }
+.cr-k { font-weight: 800; color: var(--ink-2); }
+.cr-v { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-d { font-weight: 700; white-space: nowrap; }
+[data-look="receipt"] .cr-row, [data-look="receipt"] .cr-now { font-family: var(--mono); }
+.cr-save { gap: 8px; }
+#c-items .chip { max-width: 100%; }
+
+/* 계산기 품목 고르기: 드롭다운 */
+select.pick {
+  width: 100%; font-size: 16px; padding: 7px 34px 7px 10px; border: 1.5px solid var(--line); border-radius: 4px;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center;
+  appearance: none; -webkit-appearance: none; color: var(--ink);
+}
+[data-look="receipt"] select.pick { border: 0; border-bottom: 1.5px dotted var(--line); border-radius: 0; background-color: transparent; padding-left: 0; }
+[data-look="receipt"] select.pick:focus { outline: none; border-bottom-style: solid; }

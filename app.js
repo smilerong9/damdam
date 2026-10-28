@@ -5,7 +5,7 @@
    모든 데이터는 이 기기의 IndexedDB에만 저장된다.
    ========================================================= */
 
-const DB_NAME = window.DAMDAM_PREVIEW ? 'damdam-preview-4' : 'damdam';
+const DB_NAME = window.DAMDAM_PREVIEW ? 'damdam-preview-5' : 'damdam';
 const DB_VER = 1;
 const BACKUP_KEY = 'damdam.lastBackup';
 
@@ -266,6 +266,8 @@ const state = {
   draft: null,
   viewId: null,
   pasteRows: [],
+  sel: null,
+  calc: null,
 };
 const PEEK = 3;
 const saveFold = () => lsSet('damdam.wfold', JSON.stringify(state.wfold));
@@ -280,7 +282,7 @@ async function load() {
 }
 
 /* ---------- 화면 전환 ---------- */
-const VIEWS = ['home', 'wish', 'paste', 'rec', 'recview', 'settings', 'staple', 'buy'];
+const VIEWS = ['home', 'wish', 'paste', 'rec', 'recview', 'settings', 'staple', 'buy', 'calc'];
 function showView(name) { VIEWS.forEach(v => { $('#view-' + v).hidden = v !== name; }); window.scrollTo(0, 0); }
 function go(name, params = {}) { history.pushState({ view: name, ...params }, ''); route({ view: name, ...params }); }
 function back() { if (history.state && history.state.view && history.state.view !== 'home') history.back(); else route({ view: 'home' }); }
@@ -293,6 +295,7 @@ function route(s) {
   else if (v === 'staple') { state.stapleId = s.id; renderStaple(); showView('staple'); }
   else if (v === 'buy') { if (!state.draft || state.draft.kind !== 'buy') startBuy(s); renderBuy(); showView('buy'); }
   else if (v === 'settings') { renderSettings(); showView('settings'); }
+  else if (v === 'calc') { startCalc(s.id); renderCalc(); showView('calc'); }
   else { state.draft = null; renderHome(); showView('home'); }
 }
 window.addEventListener('popstate', e => {
@@ -318,7 +321,7 @@ function wishRowHTML(w) {
   const low = lowest(w);
   const done = w.status === 'bought';
   const sub = [w.size ? `<span>${esc(w.size)}</span>` : '', w.code ? `<span class="code">${esc(w.code)}</span>` : '', w.link ? '<span class="has-link">링크</span>' : '', w.memo ? `<span>${esc(w.memo.split('\n')[0].slice(0, 22))}</span>` : ''].filter(Boolean).join('');
-  return `<div class="wl-row ${done ? 'done' : ''}">
+  return `<div class="wl-row ${done ? 'done' : ''}" data-sid="${esc(w.id)}">
     <button type="button" class="wl-check" data-check="${esc(w.id)}" aria-label="${done ? '샀어요 취소' : '샀어요'}" aria-pressed="${done}">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
@@ -353,7 +356,7 @@ function renderWishHome() {
   const todo = all.filter(w => w.status !== 'bought' && inCat(w) && matchQ(w, q));
   const done = all.filter(w => w.status === 'bought' && inCat(w) && matchQ(w, q));
   const grouped = state.wcat === 'all' && !q;
-  html += `<div class="wish-tools"><button type="button" class="link-btn" data-act="paste">여러 줄 붙여넣기</button>${grouped ? `<span class="fold-all"><button type="button" class="mini-link" data-act="fold-all">모두 접기</button><button type="button" class="mini-link" data-act="open-all">모두 펼치기</button></span>` : ''}</div>`;
+  html += `<div class="wish-tools"><button type="button" class="link-btn" data-act="paste">여러 줄 붙여넣기</button><span class="fold-all">${grouped ? `<button type="button" class="mini-link" data-act="fold-all">모두 접기</button><button type="button" class="mini-link" data-act="open-all">모두 펼치기</button>` : ''}${selLink()}</span></div>`;
   html += `<h2 class="sec-title">사고 싶은 것 <span class="cnt">${todo.length}</span></h2>`;
   if (!todo.length) html += '<p class="hint">여기엔 아직 없어요.</p>';
   else if (!grouped) html += `<div class="wl">${todo.map(wishRowHTML).join('')}</div>`;
@@ -380,7 +383,7 @@ function renderWishHome() {
 
 function recRowHTML(r) {
   const memo = (r.tried && r.tryNote) ? r.tryNote : (r.memo || '');
-  return `<button type="button" class="rl-row" data-recview="${esc(r.id)}">
+  return `<button type="button" class="rl-row" data-recview="${esc(r.id)}" data-sid="${esc(r.id)}">
     <span class="rl-main">
       <span class="rl-title">${esc(r.title || '이름 없음')}</span>
       ${memo ? `<span class="rl-memo">${esc(memo.split('\n')[0])}</span>` : ''}
@@ -406,8 +409,8 @@ function renderRecHome() {
   let html = `<div class="cat-filter">${keys.map(k => `<button type="button" class="f-btn cat-${k} ${state.cat === k ? 'is-on' : ''}" data-cat="${k}">${k === 'tried' ? `<span class="rl-tried">${SVG('<circle cx="10" cy="10" r="9" class="f"/><path d="M5.8 10.3l2.8 2.8 5.6-6" class="k"/>')}</span>` : k !== 'all' ? catSq(k) : ''}${k === 'all' ? '전체' : k === 'tried' ? '해봤어요' : RCATS[k]}<b>${cnt(k)}</b></button>`).join('')}</div>`;
   const list = all.filter(r => (state.cat === 'all' || (state.cat === 'tried' ? r.tried : rcatOf(r) === state.cat)) && matchQ(r, q));
   if (!list.length) return html + '<p class="hint" style="margin-top:20px">찾는 추천이 없어요.</p>';
+  html += `<div class="wish-tools rec-tools"><span class="fold-all">${state.cat === 'all' && !q ? `<button type="button" class="mini-link" data-act="fold-all">모두 접기</button><button type="button" class="mini-link" data-act="open-all">모두 펼치기</button>` : ''}${selLink()}</span></div>`;
   if (state.cat === 'all' && !q) {
-    html += `<div class="wish-tools rec-tools"><span class="fold-all"><button type="button" class="mini-link" data-act="fold-all">모두 접기</button><button type="button" class="mini-link" data-act="open-all">모두 펼치기</button></span></div>`;
     RCAT_KEYS.forEach(k => {
       const g = list.filter(r => rcatOf(r) === k);
       if (!g.length) return;
@@ -422,9 +425,9 @@ function renderRecHome() {
       </section>`;
     });
   } else if (state.cat === 'all') {
-    html += `<div class="rl" style="margin-top:16px">${list.map(recRowHTML).join('')}</div>`;
+    html += `<div class="rl">${list.map(recRowHTML).join('')}</div>`;
   } else {
-    html += `<div class="rl" style="margin-top:16px">${list.map(recRowHTML).join('')}</div>`;
+    html += `<div class="rl">${list.map(recRowHTML).join('')}</div>`;
   }
   return html;
 }
@@ -436,13 +439,18 @@ function renderHome() {
   const body = $('#home-body');
   body.innerHTML = state.tab === 'rec' ? renderRecHome() : state.tab === 'staple' ? renderStapleHome() : renderWishHome();
   hydrate(body);
+  body.classList.toggle('selecting', !!state.sel);
+  if (state.sel) $$('[data-sid]', body).forEach(r => r.classList.toggle('is-sel', state.sel.has(r.dataset.sid)));
+  renderSelBar();
   const fab = $('#btn-new');
   fab.classList.toggle('is-rec', state.tab === 'rec');
   fab.classList.toggle('is-staple', state.tab === 'staple');
   fab.setAttribute('aria-label', state.tab === 'rec' ? '추천 캡처 넣기' : state.tab === 'staple' ? '단골템 기록' : '위시 추가');
+  $('#btn-calc').hidden = state.tab !== 'staple' || !staples().length || !!state.sel;
+  fab.hidden = !!state.sel;
 }
 
-$$('.tab').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; lsSet('damdam.tab', state.tab); renderHome(); }));
+$$('.tab').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; state.sel = null; lsSet('damdam.tab', state.tab); renderHome(); }));
 $('#q').addEventListener('input', e => { state.q = e.target.value; renderHome(); });
 $('#btn-settings').addEventListener('click', () => go('settings'));
 $('#btn-new').addEventListener('click', () => {
@@ -454,6 +462,17 @@ $('#btn-new').addEventListener('click', () => {
 
 $('#home-body').addEventListener('click', async e => {
   const t = e.target;
+  // 선택 모드: 줄을 누르면 고르기만 한다
+  if (state.sel) {
+    const r = t.closest('[data-sid]');
+    if (r) {
+      e.preventDefault();
+      const id = r.dataset.sid;
+      if (state.sel.has(id)) state.sel.delete(id); else state.sel.add(id);
+      r.classList.toggle('is-sel', state.sel.has(id));
+      return renderSelBar();
+    }
+  }
   const chk = t.closest('[data-check]');
   if (chk) {
     const w = state.items.find(i => i.id === chk.dataset.check);
@@ -482,11 +501,43 @@ $('#home-body').addEventListener('click', async e => {
   else if (act === 'paste') go('paste');
   else if (act === 'staple-new') { state.draft = null; go('buy'); }
   else if (act === 'toggle-done') { state.showDone = !state.showDone; renderHome(); }
+  else if (act === 'select') { state.sel = state.sel ? null : new Set(); renderHome(); }
   else if (act === 'fold-all' || act === 'open-all') {
     const v = act === 'fold-all' ? 'fold' : 'open';
     const ks = state.tab === 'rec' ? RCAT_KEYS.map(k => 'r:' + k) : WISH_CAT_KEYS;
     ks.forEach(k => { state.wfold[k] = v; }); saveFold(); renderHome();
   }
+});
+
+/* ---------- 여러 개 골라서 지우기 ---------- */
+function selLink() { return `<button type="button" class="mini-link sel-link" data-act="select">${state.sel ? '선택 끝' : '선택'}</button>`; }
+function renderSelBar() {
+  const bar = $('#sel-bar'), n = state.sel ? state.sel.size : 0;
+  bar.hidden = !state.sel;
+  $('#btn-new').hidden = !!state.sel;
+  if (state.sel) $('#btn-calc').hidden = true;
+  if (!state.sel) return;
+  $('#sel-count').textContent = n ? `${n}개 선택` : '지울 것을 눌러 고르세요';
+  $('#sel-del').disabled = !n;
+  $('#sel-main').hidden = false; $('#sel-ask').hidden = true;
+}
+$('#sel-cancel').addEventListener('click', () => { state.sel = null; renderHome(); });
+$('#sel-del').addEventListener('click', () => {
+  if (!state.sel || !state.sel.size) return;
+  $('#sel-ask-msg').textContent = `${state.sel.size}개를 지울까요? 사진까지 지워져요.`;
+  $('#sel-main').hidden = true; $('#sel-ask').hidden = false;
+});
+$('#sel-no').addEventListener('click', () => { $('#sel-main').hidden = false; $('#sel-ask').hidden = true; });
+$('#sel-yes').addEventListener('click', async () => {
+  const ids = [...(state.sel || [])];
+  for (const id of ids) {
+    const it = state.items.find(i => i.id === id);
+    if (it) { await store.remove(it); (it.photos || []).forEach(p => dropURL(p.id)); }
+  }
+  await load();
+  state.sel = null;
+  renderHome();
+  toast(`${ids.length}개를 지웠어요`);
 });
 
 /* ---------- 공용: 사진 칸, 고르기, 삭제 ---------- */
@@ -1189,13 +1240,31 @@ const UNITS = ['개', '병', '팩', '캔', '롤', '매', '포'];
 const won = n => `${Math.round(n).toLocaleString('ko-KR')}원`;
 const perUnit = b => (b.qty > 0 ? b.price / b.qty : b.price);
 const dAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+/* 비교 기준: 모든 구매에 용량이 적혀 있으면 '용량당'(10ml당·100g당), 아니면 '개당' */
+const VOLU = ['ml', 'g'];
+const hasVol = b => b.vol > 0;
+function metricOf(s, extra) {
+  const u = s.unit || '개';
+  const bs = (s.buys || []).filter(b => b.price > 0).concat(extra ? [extra] : []);
+  const vol = bs.length > 0 && bs.every(hasVol) && new Set(bs.map(b => b.volU || 'ml')).size === 1;
+  if (!vol) return { mode: 'unit', f: perUnit, label: v => `${u}당 ${won(v)}`, short: `${u}당` };
+  const vu = bs[0].volU || 'ml';
+  const f = b => b.price / ((b.qty > 0 ? b.qty : 1) * b.vol);
+  const lo = Math.min(...bs.map(f));
+  const base = lo * 10 >= 10 ? 10 : lo * 100 >= 10 ? 100 : 1000;
+  const bl = base === 1000 ? (vu === 'ml' ? '1L' : '1kg') : `${base}${vu}`;
+  return { mode: 'vol', f, label: v => `${bl}당 ${won(v * base)}`, short: `${bl}당` };
+}
+const volText = (b, u) => (hasVol(b) ? `1${u} ${b.vol.toLocaleString('ko-KR')}${b.volU || 'ml'}` : '');
 function stapleStats(s) {
   const buys = (s.buys || []).filter(b => b.price > 0).slice().sort((x, y) => (y.date || '').localeCompare(x.date || ''));
-  if (!buys.length) return { buys, best: null, last: null, avg: 0 };
-  const best = buys.reduce((m, b) => (perUnit(b) < perUnit(m) ? b : m), buys[0]);
-  const avg = buys.reduce((n, b) => n + perUnit(b), 0) / buys.length;
-  return { buys, best, last: buys[0], avg };
+  const m = metricOf(s);
+  if (!buys.length) return { buys, best: null, last: null, avg: 0, m };
+  const best = buys.reduce((a, b) => (m.f(b) < m.f(a) ? b : a), buys[0]);
+  const avg = buys.reduce((n, b) => n + m.f(b), 0) / buys.length;
+  return { buys, best, last: buys[0], avg, m };
 }
+const groupsOf = () => [...new Set(staples().map(s => (s.group || '').trim()).filter(Boolean))];
 
 /* 가격 표시: 글자 없이 화살표로. 최저가면 초록 ↓, 비싸면 빨강 ↑ + % */
 const SVG = (inner, cls = '') => `<svg class="${cls}" viewBox="0 0 20 20" aria-hidden="true">${inner}</svg>`;
@@ -1210,16 +1279,16 @@ function stapleRowHTML(s) {
   const u = s.unit || '개';
   let tag = '';
   if (st.last && st.buys.length > 1) {
-    const diff = perUnit(st.last) / perUnit(st.best) - 1;
+    const diff = st.m.f(st.last) / st.m.f(st.best) - 1;
     tag = diff <= 0.001 ? bestMark() : upMark(diff);
   }
-  return `<button type="button" class="sl-row" data-staple="${esc(s.id)}">
+  return `<button type="button" class="sl-row" data-staple="${esc(s.id)}" data-sid="${esc(s.id)}">
     <span class="sl-main">
       <span class="sl-title">${catSq(scatOf(s))}<span>${esc(s.title)}</span></span>
       <span class="sl-sub">${st.last ? `최근 ${fmtDate(st.last.date)}${st.last.shop ? ' · ' + esc(st.last.shop) : ''} · ${st.buys.length}번 샀어요` : '아직 구매 기록 없음'}</span>
     </span>
     <span class="sl-side">
-      ${st.best ? `<b>${u}당 ${won(perUnit(st.best))}</b>` : ''}
+      ${st.best ? `<b>${st.m.label(st.m.f(st.best))}</b>` : ''}
       ${tag}
     </span>
   </button>`;
@@ -1233,11 +1302,32 @@ function renderStapleHome() {
       <p>물, 단백질 쉐이크, 제습제, 샴푸처럼 주기적으로 사는 걸 살 때마다 적어두면 개당 가격으로 최저가를 비교해줘요.</p>
       <div class="stack" style="max-width:260px;margin:22px auto 0"><button class="primary-btn" data-act="staple-new">단골템 기록</button></div></div>`;
   }
-  const list = all.filter(s => !q || [s.title, SCATS[scatOf(s)], ...(s.buys || []).map(b => `${b.shop} ${b.memo}`)].join(' ').toLowerCase().includes(q))
+  const list = all.filter(s => !q || [s.title, s.group, SCATS[scatOf(s)], ...(s.buys || []).map(b => `${b.shop} ${b.memo} ${b.opt || ''}`)].join(' ').toLowerCase().includes(q))
     .sort((x, y) => ((stapleStats(y).last || {}).date || '').localeCompare((stapleStats(x).last || {}).date || ''));
-  let html = `<div class="wish-tools"><span class="hint">살 때마다 기록하면 개당 가격으로 비교해요</span></div>`;
+  let html = `<div class="wish-tools"><span class="hint">살 때마다 기록하면 개당·용량당 가격으로 비교해요</span>${selLink()}</div>`;
   html += `<h2 class="sec-title">자주 사는 것 <span class="cnt">${list.length}</span></h2>`;
-  html += list.length ? `<div class="sl">${list.map(stapleRowHTML).join('')}</div>` : '<p class="hint">찾는 단골템이 없어요.</p>';
+  if (!list.length) return html + '<p class="hint">찾는 단골템이 없어요.</p>';
+  // 묶음이 있는 것은 처음 나오는 자리에 한 줄로 모으고, 펼치면 한 칸 들여서 보여준다
+  const done = new Set();
+  let rows = '';
+  list.forEach(s => {
+    const g = (s.group || '').trim();
+    const members = g && !q ? list.filter(x => (x.group || '').trim() === g) : [];
+    if (members.length < 2) { rows += stapleRowHTML(s); return; }
+    if (done.has(g)) return;
+    done.add(g);
+    const fk = 's:' + g, open = state.wfold[fk] !== 'fold';
+    const last = members.map(x => stapleStats(x).last).filter(Boolean).sort((x, y) => (y.date || '').localeCompare(x.date || ''))[0];
+    rows += `<button type="button" class="sl-row sl-grp ${open ? 'open' : ''}" data-wsec="${esc(fk)}" aria-expanded="${open}">
+      <span class="sl-main">
+        <span class="sl-title"><span class="grp-ic" aria-hidden="true"></span><span>${esc(g)}</span></span>
+        <span class="sl-sub">${members.length}개 묶음${last ? ` · 최근 ${fmtDate(last.date)}` : ''}</span>
+      </span>
+      <span class="sl-side"><i class="chev" aria-hidden="true"></i></span>
+    </button>`;
+    if (open) rows += members.map(x => stapleRowHTML(x).replace('class="sl-row"', 'class="sl-row sub"')).join('');
+  });
+  html += `<div class="sl">${rows}</div>`;
   return html;
 }
 
@@ -1251,27 +1341,29 @@ function renderStaple() {
   const q = encodeURIComponent(s.title);
   body.innerHTML = `
     <div class="rv-head">
-      <span class="rv-cat cat-${scatOf(s)}">${catSq(scatOf(s))}${esc(SCATS[scatOf(s)])} · ${esc(u)} 단위</span>
+      <span class="rv-cat cat-${scatOf(s)}">${catSq(scatOf(s))}${esc(SCATS[scatOf(s)])}${s.group ? ' · ' + esc(s.group) : ''} · ${esc(u)} 단위</span>
       <h1 class="rv-title">${esc(s.title)}</h1>
     </div>
     ${st.best ? `<div class="st-sum">
-      <div class="st-best"><small>최저</small><b>${u}당 ${won(perUnit(st.best))}</b><span>${fmtDate(st.best.date)}${st.best.shop ? ' · ' + esc(st.best.shop) : ''}</span></div>
-      <div><small>최근</small><b>${u}당 ${won(perUnit(st.last))}</b><span>${fmtDate(st.last.date)}${st.last.shop ? ' · ' + esc(st.last.shop) : ''}</span></div>
-      <div><small>평균</small><b>${u}당 ${won(st.avg)}</b><span>${st.buys.length}번 기록</span></div>
+      <div class="st-best"><small>최저</small><b>${st.m.label(st.m.f(st.best))}</b><span>${fmtDate(st.best.date)}${st.best.shop ? ' · ' + esc(st.best.shop) : ''}</span></div>
+      <div><small>최근</small><b>${st.m.label(st.m.f(st.last))}</b><span>${fmtDate(st.last.date)}${st.last.shop ? ' · ' + esc(st.last.shop) : ''}</span></div>
+      <div><small>평균</small><b>${st.m.label(st.avg)}</b><span>${st.buys.length}번 기록</span></div>
     </div>` : ''}
     <div class="rv-actions">
       <button type="button" class="mini-btn sun" data-st="buy">+ 이번 구매 기록</button>
+      <button type="button" class="mini-btn" data-st="calc">가격 확인</button>
       <a class="mini-btn" href="https://search.shopping.naver.com/search/all?query=${q}" target="_blank" rel="noopener">네이버쇼핑 가격 보기</a>
     </div>
     <h2 class="sec-title">구매 기록 <span class="cnt">${st.buys.length}</span></h2>
     ${st.buys.length ? `<div class="bl">${st.buys.map(b => `<button type="button" class="bl-row ${b === st.best && st.buys.length > 1 ? 'best' : ''}" data-buy="${esc(b.id)}">
       <span class="bl-line"><span class="bl-date">${fmtDate(b.date)}</span><span class="bl-shop">${esc(b.shop || '')}</span><b>${won(b.price)}</b>${b === st.best && st.buys.length > 1 ? bestMark() : ''}</span>
-      <span class="bl-sub">${b.qty ? `${b.qty}${esc(u)} · ` : ''}${u}당 ${won(perUnit(b))}${b.memo ? ' · ' + esc(b.memo) : ''}${(b.photoIds || []).length ? ' · 캡처' : ''}</span>
+      <span class="bl-sub">${[b.opt ? esc(b.opt) : '', b.qty ? `${b.qty}${esc(u)}` : '', `${u}당 ${won(perUnit(b))}`, st.m.mode === 'vol' ? st.m.label(st.m.f(b)) : '', b.memo ? esc(b.memo) : '', (b.photoIds || []).length ? '캡처' : ''].filter(Boolean).join(' · ')}</span>
     </button>`).join('')}</div>` : '<p class="hint">아직 구매 기록이 없어요.</p>'}`;
 }
 $('#btn-st-edit').addEventListener('click', () => { state.draft = null; go('buy', { id: state.stapleId, edit: true }); });
 $('#st-body').addEventListener('click', e => {
   if (e.target.closest('[data-st="buy"]')) { state.draft = null; return go('buy', { id: state.stapleId }); }
+  if (e.target.closest('[data-st="calc"]')) return go('calc', { id: state.stapleId });
   const r = e.target.closest('[data-buy]');
   if (r) { state.draft = null; go('buy', { id: state.stapleId, buyId: r.dataset.buy }); }
 });
@@ -1283,7 +1375,9 @@ function startBuy(s) {
   if (src && item.cat) item.cat = scatOf(item);
   const mode = !src ? 'new' : s.edit ? 'edit' : s.buyId ? 'buyedit' : 'buy';
   const last = stapleStats(item).last;
-  const buy = s.buyId ? item.buys.find(b => b.id === s.buyId) : { id: uid(), date: today(), price: 0, qty: last ? last.qty : 0, shop: last ? last.shop : '', memo: '', photoIds: [] };
+  const lastAny = (item.buys || []).slice().sort((x, y) => (y.date || '').localeCompare(x.date || ''))[0];
+  const buy = s.buyId ? item.buys.find(b => b.id === s.buyId) : { id: uid(), date: today(), price: 0, qty: last ? last.qty : 0, shop: last ? last.shop : '', memo: '', photoIds: [],
+    vol: lastAny && lastAny.vol > 0 ? lastAny.vol : 0, volU: (lastAny && lastAny.volU) || 'ml', opt: (lastAny && lastAny.opt) || '' };
   state.draft = { kind: 'buy', mode, item, buy, isNew: mode === 'new', newBlobs: new Map(), removed: [], catTouched: !!(src && src.cat), dateTouched: mode === 'buyedit', amounts: [] };
 }
 function renderBuy() {
@@ -1302,6 +1396,13 @@ function renderBuy() {
   $('#b-date').value = b.date || today();
   $('#b-shop').value = b.shop || '';
   $('#b-memo').value = b.memo || '';
+  $('#b-group').value = s.group || '';
+  $('#b-group-list').innerHTML = groupsOf().map(g => `<option value="${esc(g)}"></option>`).join('');
+  $('#b-vol').value = b.vol > 0 ? b.vol : '';
+  $('#b-vol-u').innerHTML = VOLU.map(x => `<button type="button" class="${(b.volU || 'ml') === x ? 'is-on' : ''}" data-v="${x}">${x}</button>`).join('');
+  $('#b-vol-unit').textContent = `1${s.unit || '개'}당`;
+  $('#b-opt').value = b.opt || '';
+  $('#b-opt-list').innerHTML = [...new Set((s.buys || []).map(x => x.opt).filter(Boolean))].map(o => `<option value="${esc(o)}"></option>`).join('');
   $('#b-ocr-status').textContent = '';
   $('#b-ocr-box').hidden = true;
   renderBuyPhotos(); renderUnitPrice();
@@ -1321,26 +1422,31 @@ function renderUnitPrice() {
   const d = state.draft, b = d.buy, u = d.item.unit || '개';
   const el = $('#b-unit-price');
   if (!b.price) { el.textContent = ''; el.className = 'unit-price'; return; }
-  const pu = perUnit(b);
   const others = (d.item.buys || []).filter(x => x.id !== b.id && x.price > 0);
-  let msg = `${u}당 ${won(pu)}`, cls = 'unit-price';
+  const m = metricOf({ ...d.item, buys: others }, b);
+  const pu = m.f(b);
+  let msg = m.mode === 'vol' ? `${u}당 ${won(perUnit(b))} · ${m.label(pu)}` : m.label(pu), cls = 'unit-price';
   if (others.length) {
-    const best = others.reduce((m, x) => (perUnit(x) < perUnit(m) ? x : m), others[0]);
-    const diff = pu - perUnit(best);
-    if (diff < -0.5) { msg += ` · 지금까지 중 최저가예요!`; cls += ' good'; }
-    else if (Math.abs(diff) <= 0.5) { msg += ` · 최저가와 같아요`; cls += ' good'; }
-    else { msg += ` · 최저(${fmtDate(best.date)} ${won(perUnit(best))})보다 ${won(diff)} 비싸요`; cls += ' bad'; }
+    const best = others.reduce((a, x) => (m.f(x) < m.f(a) ? x : a), others[0]);
+    const diff = pu / m.f(best) - 1;
+    if (diff < -0.005) { msg += ` · 지금까지 중 최저가예요!`; cls += ' good'; }
+    else if (diff <= 0.005) { msg += ` · 최저가와 같아요`; cls += ' good'; }
+    else { msg += ` · 최저(${fmtDate(best.date)} ${m.label(m.f(best))})보다 ${Math.round(diff * 100)}% 비싸요`; cls += ' bad'; }
   }
   el.textContent = msg; el.className = cls;
 }
 $('#b-title').addEventListener('input', e => { const d = state.draft; if (!d) return; d.item.title = e.target.value; if (!d.catTouched) { d.item.cat = staCat(guessCat(e.target.value, false), e.target.value); $('#b-cat').innerHTML = staChips(d.item.cat); } });
-$('#b-unit').addEventListener('click', e => { const c = e.target.closest('[data-v]'); const d = state.draft; if (!c || !d) return; d.item.unit = c.dataset.v; $$('#b-unit .chip').forEach(x => x.classList.toggle('is-on', x === c)); $('#b-unit-lbl').textContent = c.dataset.v; renderUnitPrice(); });
+$('#b-unit').addEventListener('click', e => { const c = e.target.closest('[data-v]'); const d = state.draft; if (!c || !d) return; d.item.unit = c.dataset.v; $$('#b-unit .chip').forEach(x => x.classList.toggle('is-on', x === c)); $('#b-unit-lbl').textContent = c.dataset.v; $('#b-vol-unit').textContent = `1${c.dataset.v}당`; renderUnitPrice(); });
 $('#b-cat').addEventListener('click', e => { const c = e.target.closest('[data-v]'); const d = state.draft; if (!c || !d) return; d.item.cat = d.item.cat === c.dataset.v ? null : c.dataset.v; d.catTouched = true; $('#b-cat').innerHTML = staChips(d.item.cat); });
 $('#b-price').addEventListener('input', e => { const d = state.draft; if (!d) return; d.buy.price = parsePrice(e.target.value); renderUnitPrice(); });
 $('#b-qty').addEventListener('input', e => { const d = state.draft; if (!d) return; d.buy.qty = parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0; renderUnitPrice(); });
 $('#b-date').addEventListener('input', e => { const d = state.draft; if (!d) return; d.buy.date = e.target.value; d.dateTouched = true; });
 $('#b-shop').addEventListener('input', e => { if (state.draft) state.draft.buy.shop = e.target.value; });
 $('#b-memo').addEventListener('input', e => { if (state.draft) state.draft.buy.memo = e.target.value; });
+$('#b-opt').addEventListener('input', e => { if (state.draft) state.draft.buy.opt = e.target.value; });
+$('#b-group').addEventListener('input', e => { if (state.draft) state.draft.item.group = e.target.value; });
+$('#b-vol').addEventListener('input', e => { const d = state.draft; if (!d) return; d.buy.vol = parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0; renderUnitPrice(); });
+$('#b-vol-u').addEventListener('click', e => { const c = e.target.closest('[data-v]'); const d = state.draft; if (!c || !d) return; d.buy.volU = c.dataset.v; setSeg('#b-vol-u', c.dataset.v); renderUnitPrice(); });
 $('#b-photos').addEventListener('click', e => {
   const ph = e.target.closest('[data-ph]'); const d = state.draft; if (!ph || !d || !e.target.closest('[data-ph-del]')) return;
   removePhoto(d, ph.dataset.ph);
@@ -1413,10 +1519,14 @@ $('#btn-buy-save').addEventListener('click', async () => {
   if ((d.mode === 'new' || d.mode === 'edit') && !s.title) { toast('무엇인지 적어주세요'); $('#b-title').focus(); return; }
   if (d.mode !== 'edit') {
     if (!b.price) { toast('가격을 적어주세요'); $('#b-price').focus(); return; }
-    b.shop = (b.shop || '').trim(); b.memo = (b.memo || '').trim();
+    b.shop = (b.shop || '').trim(); b.memo = (b.memo || '').trim(); b.opt = (b.opt || '').trim();
+    if (!(b.vol > 0)) { b.vol = 0; delete b.volU; } else b.volU = b.volU || 'ml';
     const i = s.buys.findIndex(x => x.id === b.id);
+    // 처음으로 용량을 적으면, 용량이 비어 있던 예전 기록에도 같은 용량을 넣는다 (같은 물건이라 보고)
+    if (b.vol > 0 && !s.buys.some(x => x.id !== b.id && x.vol > 0)) s.buys.forEach(x => { if (x.id !== b.id) { x.vol = b.vol; x.volU = b.volU; } });
     if (i >= 0) s.buys[i] = b; else s.buys.push(b);
   }
+  s.group = (s.group || '').trim();
   if (!SCATS[s.cat]) s.cat = 'etc'; s.cv = 2;
   s.photos = s.photos.filter(p => s.buys.some(x => (x.photoIds || []).includes(p.id)));
   try { await saveDraft(); } catch { toast('저장하지 못했어요. 저장 공간을 확인해 주세요.'); return; }
@@ -1600,12 +1710,15 @@ async function seedPreview() {
     items.push(r);
     const p = photos.find(x => x.id === s.pid); if (p) p.itemId = r.id;
   });
-  const staple = (title, unit, cat, buys) => ({ id: uid(), kind: 'staple', sample: true, title, unit, cat, photos: [], createdAt: now, buys: buys.map(([ago, price, qty, shop, memo]) => ({ id: uid(), date: dAgo(ago), price, qty, shop, memo: memo || '', photoIds: [] })) });
+  const staple = (title, unit, cat, buys, extra = {}) => ({ id: uid(), kind: 'staple', sample: true, cv: 2, title, unit, cat, photos: [], createdAt: now, ...extra,
+    buys: buys.map(([ago, price, qty, shop, memo, more]) => ({ id: uid(), date: dAgo(ago), price, qty, shop, memo: memo || '', photoIds: [], ...(more || {}) })) });
+  const w2 = { vol: 2000, volU: 'ml' }, w5 = { vol: 500, volU: 'ml' };
   items.push(
-    staple('삼다수 2L', '병', 'drink', [[84, 11880, 12, '쿠팡'], [54, 10900, 12, '네이버', '쿠폰 1,000원'], [21, 12480, 12, '쿠팡']]),
-    staple('마이프로틴 쉐이크 초코 1kg', '개', 'food', [[108, 39900, 1, '공식몰', '블랙프라이데이'], [28, 45000, 1, '쿠팡']]),
+    staple('삼다수', '병', 'food', [[84, 11880, 12, '쿠팡', '', w2], [54, 10900, 12, '네이버', '쿠폰 1,000원', w2], [21, 12480, 12, '쿠팡', '', w2], [6, 9600, 20, '쿠팡', '500ml 묶음', w5]]),
+    staple('마이프로틴 임팩트 웨이 1kg', '개', 'food', [[108, 39900, 1, '공식몰', '블랙프라이데이', { opt: '초코' }], [28, 45000, 1, '쿠팡', '', { opt: '바닐라' }]]),
     staple('물먹는하마 제습제', '개', 'living', [[128, 15900, 24, '쿠팡'], [25, 6000, 6, '다이소']]),
-    staple('려 자양윤모 샴푸 500ml', '병', 'beauty', [[41, 21800, 2, '올리브영', '1+1 행사']]),
+    staple('르네휘테르 포티샤 샴푸 200ml', '병', 'body', [[41, 24000, 1, '올리브영']], { group: '르네휘테르' }),
+    staple('르네휘테르 트리트먼트 200ml', '병', 'body', [[40, 29000, 1, '올리브영', '1+1 행사'], [12, 31000, 1, '네이버']], { group: '르네휘테르' }),
   );
   await store.putMany(items, photos);
 }
@@ -1644,6 +1757,130 @@ function openShared(title, text, url) {
   if ('serviceWorker' in navigator && location.protocol !== 'file:' && !window.DAMDAM_PREVIEW) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 
+/* =========================================================
+   퀵 가격 계산기 — 사기 전에 이 가격이 괜찮은지 바로 확인
+   ========================================================= */
+function startCalc(id) {
+  const list = staples().filter(x => stapleStats(x).buys.length);
+  const pick = (id && list.find(x => x.id === id)) || null;
+  state.calc = { id: pick ? pick.id : null, from: pick ? pick.id : null, price: 0, qty: 0, vol: 0, saving: false, shop: '' };
+  if (pick) fillCalcFromLast(pick);
+}
+function fillCalcFromLast(sItem) {
+  const c = state.calc, last = stapleStats(sItem).last;
+  c.qty = last && last.qty ? last.qty : 0;
+  c.vol = last && last.vol > 0 ? last.vol : 0;
+  c.volU = (last && last.volU) || 'ml';
+  c.shop = (last && last.shop) || '';
+}
+function renderCalc() {
+  const c = state.calc;
+  const list = staples().filter(x => stapleStats(x).buys.length)
+    .sort((x, y) => ((stapleStats(y).last || {}).date || '').localeCompare((stapleStats(x).last || {}).date || ''));
+  $('#c-empty').hidden = !!list.length;
+  $('#c-item').disabled = !list.length;
+  $('#c-item').innerHTML = `<option value="">고르세요</option>` + list.map(x => `<option value="${esc(x.id)}" ${c.id === x.id ? 'selected' : ''}>${esc(x.group && !x.title.includes(x.group) ? `${x.group} · ${x.title}` : x.title)}</option>`).join('');
+  const sItem = list.find(x => x.id === c.id);
+  const u = sItem ? sItem.unit || '개' : '개';
+  $('#c-unit').textContent = u;
+  $('#c-price').value = c.price ? c.price.toLocaleString('ko-KR') : '';
+  $('#c-qty').value = c.qty || '';
+  $('#c-vol').value = c.vol || '';
+  $('#c-vol-u').innerHTML = VOLU.map(x => `<button type="button" class="${(c.volU || 'ml') === x ? 'is-on' : ''}" data-v="${x}">${x}</button>`).join('');
+  $('#c-vol-lbl').textContent = `1${u}당`;
+  renderCalcResult();
+}
+function judge(sItem, cand) {
+  const st = stapleStats(sItem);
+  const m = metricOf(sItem, cand);
+  const v = m.f(cand);
+  const best = st.buys.reduce((a, b) => (m.f(b) < m.f(a) ? b : a), st.buys[0]);
+  const avg = st.buys.reduce((n, b) => n + m.f(b), 0) / st.buys.length;
+  const dBest = v / m.f(best) - 1, dAvg = v / avg - 1;
+  let verdict, cls;
+  if (dBest < -0.005) { verdict = '최저가 갱신! 지금까지 중 가장 싸요'; cls = 'best'; }
+  else if (dBest <= 0.1) { verdict = '괜찮은 가격이에요'; cls = 'good'; }
+  else if (dAvg <= 0.005) { verdict = '평균 수준이에요'; cls = 'mid'; }
+  else { verdict = '비싼 편이에요'; cls = 'bad'; }
+  const pct = d => (Math.abs(d) < 0.005 ? '같아요' : `${Math.round(Math.abs(d) * 100)}% ${d < 0 ? '싸요' : '비싸요'}`);
+  const rows = [
+    ['최저', `${m.label(m.f(best))} · ${fmtDate(best.date)}${best.shop ? ' ' + esc(best.shop) : ''}`, pct(dBest)],
+    ['평균', `${m.label(avg)} · ${st.buys.length}번`, pct(dAvg)],
+    ['지난번', `${m.label(m.f(st.last))} · ${fmtDate(st.last.date)}`, pct(v / m.f(st.last) - 1)],
+  ];
+  let extra = '';
+  if (m.mode === 'vol') extra = `${sItem.unit || '개'}당 ${won(perUnit(cand))}`;
+  else if (cand.vol > 0) {
+    // 예전 기록에 용량이 없으면 비교는 개당으로 하고, 지금 가격의 용량당 값만 보여준다
+    const pv = cand.price / ((cand.qty > 0 ? cand.qty : 1) * cand.vol), vu = cand.volU || 'ml';
+    const base = pv * 10 >= 10 ? 10 : pv * 100 >= 10 ? 100 : 1000;
+    extra = `${base === 1000 ? (vu === 'ml' ? '1L' : '1kg') : base + vu}당 ${won(pv * base)}`;
+  }
+  const note = m.mode !== 'vol' && cand.vol > 0 && !(sItem.buys || []).some(x => x.vol > 0) ? 'fill' : '';
+  return { verdict, cls, now: m.label(v), unitNow: extra, note, rows };
+}
+function renderCalcResult() {
+  const c = state.calc, box = $('#c-result');
+  const sItem = staples().find(x => x.id === c.id);
+  if (!sItem || !c.price) { box.hidden = true; return; }
+  const cand = { price: c.price, qty: c.qty, vol: c.vol, volU: c.volU };
+  const j = judge(sItem, cand);
+  const shops = [...new Set([c.shop, ...stapleStats(sItem).buys.map(b => b.shop), '쿠팡', '네이버', '컬리', '올리브영', '다이소'].filter(Boolean))].slice(0, 6);
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="cr-verdict ${j.cls}">${j.cls === 'best' || j.cls === 'good' ? bestMark() : ''}<b>${j.verdict}</b></div>
+    <p class="cr-now">지금 <b>${j.now}</b>${j.unitNow ? ` <span>${j.unitNow}</span>` : ''}</p>
+    <div class="cr-rows">${j.rows.map(r => `<div class="cr-row"><span class="cr-k">${r[0]}</span><span class="cr-v">${r[1]}</span><span class="cr-d">${r[2]}</span></div>`).join('')}</div>
+    ${j.note ? `<button type="button" class="mini-btn" data-calc="fillvol">예전 기록도 같은 용량으로 보고 용량당 비교하기</button>` : ''}
+    ${c.saving ? `<div class="field cr-save">
+        <span class="lbl">어디서 샀어요?</span>
+        <div class="chips" id="c-shops">${shops.map(x => `<button type="button" class="chip ${c.shop === x ? 'is-on' : ''}" data-shop="${esc(x)}">${esc(x)}</button>`).join('')}</div>
+        <button type="button" class="primary-btn" data-calc="save">오늘 구매로 기록하기</button>
+      </div>`
+      : `<button type="button" class="primary-btn" data-calc="bought">이 가격에 샀어요</button>`}`;
+}
+$('#c-item').addEventListener('change', e => {
+  const c = state.calc; c.id = e.target.value || null; c.saving = false;
+  const sItem = staples().find(x => x.id === c.id); if (sItem) fillCalcFromLast(sItem);
+  renderCalc();
+  if (c.id) setTimeout(() => $('#c-price').focus(), 30);
+});
+$('#c-vol-u').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; state.calc.volU = b.dataset.v; setSeg('#c-vol-u', b.dataset.v); renderCalcResult(); });
+$('#c-price').addEventListener('input', e => { state.calc.price = parsePrice(e.target.value); renderCalcResult(); });
+$('#c-qty').addEventListener('input', e => { state.calc.qty = parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0; renderCalcResult(); });
+$('#c-vol').addEventListener('input', e => { state.calc.vol = parseFloat(e.target.value.replace(/[^\d.]/g, '')) || 0; renderCalcResult(); });
+$('#c-result').addEventListener('click', async e => {
+  const c = state.calc;
+  const sh = e.target.closest('[data-shop]');
+  if (sh) { c.shop = c.shop === sh.dataset.shop ? '' : sh.dataset.shop; return renderCalcResult(); }
+  const a = e.target.closest('[data-calc]')?.dataset.calc;
+  if (a === 'bought') { c.saving = true; return renderCalcResult(); }
+  if (a === 'fillvol') {
+    const it = state.items.find(x => x.id === c.id); if (!it) return;
+    (it.buys || []).forEach(x => { if (!(x.vol > 0)) { x.vol = c.vol; x.volU = c.volU || 'ml'; } });
+    await store.save(it);
+    toast('예전 기록에 용량을 넣었어요');
+    return renderCalcResult();
+  }
+  if (a !== 'save') return;
+  const sItem = state.items.find(x => x.id === c.id); if (!sItem) return;
+  const last = stapleStats(sItem).last;
+  const b = { id: uid(), date: today(), price: c.price, qty: c.qty, shop: c.shop, memo: '', photoIds: [], opt: (last && last.opt) || '' };
+  if (c.vol > 0) {
+    b.vol = c.vol; b.volU = c.volU || 'ml';
+    if (!(sItem.buys || []).some(x => x.vol > 0)) (sItem.buys || []).forEach(x => { x.vol = b.vol; x.volU = b.volU; });
+  }
+  sItem.buys = [...(sItem.buys || []), b];
+  try { await store.save(sItem); } catch (err) { toast('저장하지 못했어요. 저장 공간을 확인해 주세요.'); return; }
+  await load();
+  state.tab = 'staple';
+  toast('구매 기록을 남겼어요');
+  // 상세에서 열었으면 그 상세로 돌아가고, 홈에서 열었으면 상세로 바꿔 보여준다
+  if (c.from === sItem.id) history.back();
+  else { history.replaceState({ view: 'staple', id: sItem.id }, ''); route({ view: 'staple', id: sItem.id }); }
+});
+$('#btn-calc').addEventListener('click', () => go('calc'));
+
 /* 앱 버전 표시 (설정 맨 아래). 업데이트가 들어왔는지 확인용 */
-const APP_VER = 'damdam-v16';
+const APP_VER = 'damdam-v18';
 (() => { const el = document.getElementById('app-ver'); if (el) el.textContent = `담담 버전 ${APP_VER.split('-').pop()}`; })();

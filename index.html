@@ -38,6 +38,13 @@
       </nav>
     </header>
     <main class="wrap" id="home-body"></main>
+    <button class="fab-sub" id="btn-calc" aria-label="가격 계산기" hidden>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="8" y="6" width="8" height="3.4" rx=".6" fill="currentColor"/><circle cx="9" cy="13" r="1.1" fill="currentColor"/><circle cx="12" cy="13" r="1.1" fill="currentColor"/><circle cx="15" cy="13" r="1.1" fill="currentColor"/><circle cx="9" cy="17" r="1.1" fill="currentColor"/><circle cx="12" cy="17" r="1.1" fill="currentColor"/><circle cx="15" cy="17" r="1.1" fill="currentColor"/></svg>
+    </button>
+    <div class="sel-bar" id="sel-bar" hidden>
+      <div class="sel-row" id="sel-main"><span id="sel-count">0개 선택</span><button type="button" class="text-btn muted" id="sel-cancel">취소</button><button type="button" class="danger-btn solid" id="sel-del" disabled>삭제</button></div>
+      <div class="sel-row" id="sel-ask" hidden><span id="sel-ask-msg">지울까요?</span><button type="button" class="text-btn muted" id="sel-no">그대로</button><button type="button" class="danger-btn solid" id="sel-yes">삭제</button></div>
+    </div>
     <button class="fab" id="btn-new" aria-label="위시 추가">
       <svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">
         <path class="fab-heart" d="M18 31s-10-6.2-10-13.2A5.6 5.6 0 0 1 18 14a5.6 5.6 0 0 1 10 3.8C28 24.8 18 31 18 31z" fill="#fff" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
@@ -267,6 +274,11 @@
             <span class="lbl">분류</span>
             <div class="chips cat-chips" id="b-cat"></div>
           </div>
+          <label class="field">
+            <span class="lbl">묶음 <em>선택 · 같은 이름끼리 목록에서 모여요</em></span>
+            <input type="text" id="b-group" list="b-group-list" placeholder="예: 르네휘테르">
+            <datalist id="b-group-list"></datalist>
+          </label>
         </section>
 
         <section class="block" id="buy-purchase">
@@ -282,15 +294,22 @@
             <label class="field"><span class="lbl">가격 <em>쿠폰 적용 후</em></span><input type="text" id="b-price" inputmode="numeric" placeholder="예: 11,900"></label>
             <label class="field"><span class="lbl">수량 <em id="b-unit-lbl">개</em></span><input type="text" id="b-qty" inputmode="decimal" placeholder="예: 12"></label>
           </div>
+          <div class="field vol-field">
+            <span class="lbl">용량 <em><span id="b-vol-unit">1개당</span> · 선택, 용량당 가격으로 비교해요</em></span>
+            <div class="vol-row">
+              <input type="text" id="b-vol" inputmode="decimal" placeholder="예: 500">
+              <div class="seg mini" id="b-vol-u"></div>
+            </div>
+          </div>
           <p class="unit-price" id="b-unit-price" aria-live="polite"></p>
           <div class="row2">
             <label class="field"><span class="lbl">날짜</span><input type="date" id="b-date"></label>
             <label class="field"><span class="lbl">어디서</span><input type="text" id="b-shop" placeholder="예: 쿠팡, 네이버"></label>
           </div>
-          <label class="field">
-            <span class="lbl">메모 <em>선택</em></span>
-            <input type="text" id="b-memo" placeholder="예: 와우 할인, 1+1 행사">
-          </label>
+          <div class="row2">
+            <label class="field"><span class="lbl">맛·옵션 <em>선택</em></span><input type="text" id="b-opt" list="b-opt-list" placeholder="예: 초코"><datalist id="b-opt-list"></datalist></label>
+            <label class="field"><span class="lbl">메모 <em>선택</em></span><input type="text" id="b-memo" placeholder="예: 와우 할인"></label>
+          </div>
         </section>
 
         <div class="danger-zone" id="b-del-zone" hidden>
@@ -300,6 +319,42 @@
             <div class="confirm-row"><button type="button" class="ghost-btn" id="b-del-no">그대로 두기</button><button type="button" class="danger-btn solid" id="b-del-yes">삭제</button></div>
           </div>
         </div>
+      </form>
+    </main>
+  </section>
+
+  <!-- 퀵 가격 계산기 -->
+  <section id="view-calc" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="icon-btn" data-back aria-label="뒤로">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="top-title">가격 계산기</span>
+        <span class="icon-btn" aria-hidden="true"></span>
+      </div>
+    </header>
+    <main class="wrap" data-foot="CHECK">
+      <form class="form" autocomplete="off" novalidate>
+        <section class="block">
+          <label class="field">
+            <span class="lbl">무엇을 살까요</span>
+            <select id="c-item" class="pick"></select>
+          </label>
+          <p class="hint" id="c-empty" hidden>구매 기록이 있는 단골템이 아직 없어요. 한 번 기록하면 여기서 비교할 수 있어요.</p>
+          <div class="row2">
+            <label class="field"><span class="lbl">지금 가격 <em>쿠폰 적용 후</em></span><input type="text" id="c-price" inputmode="numeric" placeholder="예: 10,900"></label>
+            <label class="field"><span class="lbl">수량 <em id="c-unit">개</em></span><input type="text" id="c-qty" inputmode="decimal" placeholder="예: 12"></label>
+          </div>
+          <div class="field vol-field">
+            <span class="lbl">용량 <em><span id="c-vol-lbl">1개당</span> · 선택, 넣으면 용량당 가격도 나와요</em></span>
+            <div class="vol-row">
+              <input type="text" id="c-vol" inputmode="decimal" placeholder="예: 500">
+              <div class="seg mini" id="c-vol-u"></div>
+            </div>
+          </div>
+        </section>
+        <section class="block calc-result" id="c-result" aria-live="polite" hidden></section>
       </form>
     </main>
   </section>
